@@ -1,0 +1,854 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1.0" />
+<title>My Journal</title>
+
+<!-- Firebase SDK -->
+<script src="https://www.gstatic.com/firebasejs/11.6.0/firebase-app-compat.js"></script>
+<script src="https://www.gstatic.com/firebasejs/11.6.0/firebase-database-compat.js"></script>
+
+<style>
+  *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
+
+  :root {
+    --bg: #faf8f5;
+    --card: #ffffff;
+    --text-primary: #2c2c2c;
+    --text-secondary: #6b6b6b;
+    --text-muted: #a89f94;
+    --border: #e4e0db;
+    --accent: #3a3a3a;
+    --font-serif: 'Georgia', 'Times New Roman', serif;
+    --font-mono: 'Courier New', 'Courier', monospace;
+
+    --covert-bg: #0f0f0f;
+    --covert-card: #141414;
+    --covert-border: #222222;
+    --covert-text: #e0e0e0;
+    --covert-muted: #555555;
+    --covert-green: #4caf50;
+    --covert-bubble-me: #2a2a2a;
+    --covert-bubble-other: #1e1e1e;
+  }
+
+  body {
+    font-family: var(--font-serif);
+    background: var(--bg);
+    color: var(--text-primary);
+    min-height: 100vh;
+    -webkit-font-smoothing: antialiased;
+  }
+
+  input, textarea, button { font-family: inherit; }
+  button { cursor: pointer; }
+  input:focus, textarea:focus { outline: none; }
+
+  /* ─── LOGIN LAYER ──────────────────────────────────────────── */
+  #login-layer {
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    min-height: 100vh;
+    padding: 20px;
+  }
+  #login-layer.hidden { display: none; }
+
+  .login-card {
+    background: var(--card);
+    border-radius: 16px;
+    padding: 40px 32px;
+    max-width: 380px;
+    width: 100%;
+    box-shadow: 0 4px 20px rgba(0,0,0,0.08);
+    border: 1px solid var(--border);
+  }
+  .login-title {
+    font-size: 24px;
+    font-weight: 400;
+    font-style: italic;
+    color: var(--text-primary);
+    margin-bottom: 8px;
+    text-align: center;
+  }
+  .login-subtitle {
+    font-size: 13px;
+    color: var(--text-muted);
+    text-align: center;
+    margin-bottom: 28px;
+  }
+  .login-form { display: flex; flex-direction: column; gap: 16px; }
+  .login-input {
+    width: 100%;
+    padding: 12px 16px;
+    border: 1px solid var(--border);
+    border-radius: 8px;
+    font-size: 14px;
+    color: var(--text-primary);
+    background: var(--bg);
+    transition: border-color 0.2s;
+  }
+  .login-input:focus { border-color: var(--accent); }
+  .login-btn {
+    padding: 12px 24px;
+    background: var(--accent);
+    color: #fff;
+    border: none;
+    border-radius: 8px;
+    font-size: 14px;
+    margin-top: 8px;
+    transition: opacity 0.2s;
+  }
+  .login-btn:hover { opacity: 0.9; }
+  .login-error {
+    display: none;
+    color: #d32f2f;
+    font-size: 12px;
+    text-align: center;
+    margin-top: 8px;
+  }
+  .login-error.visible { display: block; }
+
+  /* ─── JOURNAL LAYER ────────────────────────────────────────── */
+  #journal-layer {
+    display: none;
+    max-width: 520px;
+    margin: 0 auto;
+    padding: 0 0 60px;
+    min-height: 100vh;
+  }
+  #journal-layer.visible { display: block; }
+
+  .j-header {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    padding: 28px 24px 12px;
+  }
+  .j-logo {
+    font-size: 22px;
+    font-weight: 400;
+    font-style: italic;
+    color: #3a3a3a;
+    letter-spacing: -0.5px;
+  }
+  .j-header-actions { display: flex; gap: 4px; }
+  .j-icon-btn {
+    background: none;
+    border: none;
+    color: var(--text-secondary);
+    padding: 8px;
+    border-radius: 8px;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    transition: background 0.2s;
+  }
+  .j-icon-btn:hover { background: var(--border); }
+
+  .j-search-bar {
+    display: none;
+    align-items: center;
+    gap: 10px;
+    margin: 0 16px 8px;
+    padding: 10px 14px;
+    background: var(--card);
+    border-radius: 12px;
+    border: 1px solid var(--border);
+    box-shadow: 0 2px 8px rgba(0,0,0,0.04);
+  }
+  .j-search-bar.visible { display: flex; }
+  .j-search-bar svg { flex-shrink: 0; }
+  .j-search-input {
+    flex: 1;
+    border: none;
+    background: transparent;
+    font-size: 14px;
+    color: var(--text-primary);
+    font-family: var(--font-serif);
+  }
+  .j-search-close {
+    background: none;
+    border: none;
+    color: #999;
+    font-size: 14px;
+    padding: 2px 6px;
+  }
+
+  .j-write-panel {
+    display: none;
+    margin: 8px 16px 16px;
+    padding: 20px;
+    background: var(--card);
+    border-radius: 14px;
+    border: 1px solid var(--border);
+    box-shadow: 0 2px 12px rgba(0,0,0,0.05);
+  }
+  .j-write-panel.visible { display: block; }
+  .j-write-title {
+    width: 100%;
+    border: none;
+    font-size: 18px;
+    font-style: italic;
+    color: var(--text-primary);
+    margin-bottom: 10px;
+    padding-bottom: 8px;
+    border-bottom: 1px solid var(--border);
+  }
+  .j-write-body {
+    width: 100%;
+    border: none;
+    resize: vertical;
+    font-size: 14px;
+    color: var(--text-secondary);
+    line-height: 1.7;
+    min-height: 90px;
+  }
+  .j-write-actions { display: flex; gap: 10px; margin-top: 14px; }
+  .j-btn-save {
+    padding: 8px 20px;
+    background: var(--accent);
+    color: #fff;
+    border: none;
+    border-radius: 8px;
+    font-size: 13px;
+  }
+  .j-btn-cancel {
+    padding: 8px 16px;
+    background: none;
+    color: #999;
+    border: 1px solid #ddd;
+    border-radius: 8px;
+    font-size: 13px;
+  }
+
+  .j-entry-list { padding: 4px 16px 0; }
+  .j-entry {
+    display: flex;
+    gap: 16px;
+    padding: 18px 0;
+    border-bottom: 1px solid #ece9e4;
+    cursor: pointer;
+    transition: opacity 0.15s;
+  }
+  .j-entry:hover { opacity: 0.7; }
+  .j-entry-date {
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    min-width: 36px;
+  }
+  .j-entry-day { font-size: 20px; font-weight: 300; color: #3a3a3a; line-height: 1.1; }
+  .j-entry-month { font-size: 10px; text-transform: uppercase; letter-spacing: 0.8px; color: var(--text-muted); margin-top: 2px; }
+  .j-entry-content { flex: 1; min-width: 0; }
+  .j-entry-title { font-size: 15px; font-weight: 400; color: var(--text-primary); margin-bottom: 3px; }
+  .j-entry-preview { font-size: 13px; color: #8a8a8a; line-height: 1.5; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+
+  .j-no-results { text-align: center; color: #aaa; font-size: 14px; font-style: italic; padding: 50px 0; }
+
+  .j-detail-overlay {
+    display: none;
+    position: fixed; inset: 0;
+    background: rgba(0,0,0,0.35);
+    z-index: 100;
+    align-items: center;
+    justify-content: center;
+    padding: 20px;
+  }
+  .j-detail-overlay.visible { display: flex; }
+  .j-detail-card {
+    background: var(--card);
+    border-radius: 16px;
+    padding: 32px 28px 28px;
+    max-width: 460px;
+    width: 100%;
+    max-height: 80vh;
+    overflow-y: auto;
+    position: relative;
+    box-shadow: 0 8px 40px rgba(0,0,0,0.12);
+  }
+  .j-detail-close {
+    position: absolute; top: 14px; right: 16px;
+    background: none; border: none;
+    color: #999; font-size: 20px;
+  }
+  .j-detail-date { font-size: 12px; color: var(--text-muted); letter-spacing: 0.5px; margin-bottom: 4px; }
+  .j-detail-title { font-size: 20px; font-weight: 400; color: var(--text-primary); margin-bottom: 16px; }
+  .j-detail-body { font-size: 14px; color: var(--text-secondary); line-height: 1.8; }
+
+  .j-logout-btn {
+    position: fixed;
+    bottom: 20px;
+    right: 20px;
+    background: rgba(255,255,255,0.9);
+    border: 1px solid var(--border);
+    color: var(--text-secondary);
+    padding: 8px 16px;
+    border-radius: 20px;
+    font-size: 12px;
+    box-shadow: 0 2px 8px rgba(0,0,0,0.1);
+    transition: all 0.2s;
+  }
+  .j-logout-btn:hover {
+    background: #fff;
+    color: var(--text-primary);
+  }
+
+  /* ─── COVERT LAYER ─────────────────────────────────────────── */
+  #covert-layer {
+    display: none;
+    position: fixed; inset: 0;
+    background: var(--covert-bg);
+    color: var(--covert-text);
+    font-family: var(--font-mono);
+    flex-direction: column;
+    max-width: 520px;
+    margin: 0 auto;
+    z-index: 200;
+  }
+  #covert-layer.visible { display: flex; }
+
+  .c-header {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    padding: 16px 20px;
+    border-bottom: 1px solid var(--covert-border);
+    background: var(--covert-card);
+    flex-shrink: 0;
+  }
+  .c-header-left { display: flex; align-items: center; gap: 10px; }
+  .c-status-dot {
+    width: 8px; height: 8px;
+    border-radius: 50%;
+    background: var(--covert-green);
+    box-shadow: 0 0 6px var(--covert-green);
+  }
+  .c-channel-name { font-size: 14px; color: #aaa; letter-spacing: 1px; }
+  .c-header-right { display: flex; gap: 4px; }
+  .c-header-btn {
+    background: none; border: none;
+    color: #666; font-size: 18px;
+    padding: 4px 8px; border-radius: 6px;
+    transition: color 0.2s;
+  }
+  .c-header-btn:hover { color: #aaa; }
+
+  .c-channel-panel {
+    display: none;
+    background: #1a1a1a;
+    border-bottom: 1px solid var(--covert-border);
+    padding: 16px 20px;
+    flex-shrink: 0;
+  }
+  .c-channel-panel.visible { display: block; }
+  .c-channel-label { font-size: 11px; color: #666; text-transform: uppercase; letter-spacing: 1px; margin-bottom: 4px; }
+  .c-channel-help { font-size: 11px; color: var(--covert-muted); line-height: 1.5; margin-bottom: 12px; }
+  .c-channel-row { display: flex; gap: 8px; }
+  .c-channel-input {
+    flex: 1;
+    background: var(--covert-bg);
+    border: 1px solid #333;
+    border-radius: 6px;
+    padding: 8px 12px;
+    color: var(--covert-text);
+    font-size: 13px;
+    font-family: var(--font-mono);
+  }
+  .c-channel-apply {
+    background: var(--covert-green);
+    color: #fff; border: none;
+    border-radius: 6px;
+    padding: 8px 14px;
+    font-size: 12px;
+    font-family: var(--font-mono);
+  }
+
+  .c-messages {
+    flex: 1;
+    overflow-y: auto;
+    padding: 20px 16px;
+    display: flex;
+    flex-direction: column;
+    gap: 12px;
+  }
+  .c-empty {
+    flex: 1;
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    justify-content: center;
+    text-align: center;
+    gap: 6px;
+  }
+  .c-empty-text { font-size: 14px; color: var(--covert-muted); }
+  .c-empty-hint { font-size: 11px; color: #444; }
+
+  .c-msg-row { display: flex; width: 100%; }
+  .c-msg-row.me { justify-content: flex-end; }
+  .c-msg-row.other { justify-content: flex-start; }
+
+  .c-bubble {
+    border-radius: 12px;
+    padding: 10px 14px;
+    max-width: 75%;
+    display: flex;
+    flex-direction: column;
+    gap: 4px;
+  }
+  .c-bubble.me {
+    background: var(--covert-bubble-me);
+    border-radius: 12px 12px 4px 12px;
+  }
+  .c-bubble.other {
+    background: var(--covert-bubble-other);
+    border-radius: 12px 12px 12px 4px;
+    border: 1px solid #2a2a2a;
+  }
+  .c-msg-text { font-size: 14px; color: #ddd; line-height: 1.5; word-break: break-word; }
+  .c-msg-time { font-size: 10px; color: var(--covert-muted); align-self: flex-end; margin-top: 4px; }
+
+  .c-input-area {
+    display: flex;
+    gap: 8px;
+    padding: 12px 16px;
+    border-top: 1px solid var(--covert-border);
+    background: var(--covert-card);
+    flex-shrink: 0;
+  }
+  .c-input {
+    flex: 1;
+    background: var(--covert-bg);
+    border: 1px solid #333;
+    border-radius: 8px;
+    padding: 10px 14px;
+    color: var(--covert-text);
+    font-size: 14px;
+    font-family: var(--font-mono);
+  }
+  .c-input::placeholder { color: #555; }
+  .c-send-btn {
+    background: var(--covert-green);
+    color: #fff; border: none;
+    border-radius: 8px;
+    padding: 10px 20px;
+    font-size: 13px;
+    font-family: var(--font-mono);
+    transition: background 0.2s;
+  }
+  .c-send-btn:hover { background: #43a047; }
+</style>
+</head>
+<body>
+
+<!-- ═══════════════════════════════════════════════════════════════ -->
+<!--  LOGIN LAYER -->
+<!-- ═══════════════════════════════════════════════════════════════ -->
+<div id="login-layer">
+  <div class="login-card">
+    <h1 class="login-title">my journal</h1>
+    <p class="login-subtitle">Sign in to continue</p>
+    <div class="login-form">
+      <input type="text" id="login-username" class="login-input" placeholder="Username" autocomplete="off" />
+      <input type="password" id="login-password" class="login-input" placeholder="Password" />
+      <button id="btn-login" class="login-btn">Sign In</button>
+      <div class="login-error" id="login-error">Invalid username or password</div>
+    </div>
+  </div>
+</div>
+
+<!-- ═══════════════════════════════════════════════════════════════ -->
+<!--  JOURNAL LAYER -->
+<!-- ═══════════════════════════════════════════════════════════════ -->
+<div id="journal-layer">
+
+  <div class="j-header">
+    <div class="j-logo">my journal</div>
+    <div class="j-header-actions">
+      <button class="j-icon-btn" id="btn-open-search" title="Search">
+        <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="11" cy="11" r="8"/><line x1="21" y1="21" x2="16.65" y2="16.65"/></svg>
+      </button>
+      <button class="j-icon-btn" id="btn-open-write" title="New entry">
+        <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><line x1="12" y1="5" x2="12" y2="19"/><line x1="5" y1="12" x2="19" y2="12"/></svg>
+      </button>
+    </div>
+  </div>
+
+  <div class="j-search-bar" id="search-bar">
+    <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="#8a8a8a" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="11" cy="11" r="8"/><line x1="21" y1="21" x2="16.65" y2="16.65"/></svg>
+    <input type="text" class="j-search-input" id="search-input" placeholder="Search entries..." />
+    <button class="j-search-close" id="btn-close-search">✕</button>
+  </div>
+
+  <div class="j-write-panel" id="write-panel">
+    <input type="text" class="j-write-title" id="write-title" placeholder="What's on your mind?" />
+    <textarea class="j-write-body" id="write-body" placeholder="Write freely..."></textarea>
+    <div class="j-write-actions">
+      <button class="j-btn-save" id="btn-save-entry">Save Entry</button>
+      <button class="j-btn-cancel" id="btn-cancel-write">Cancel</button>
+    </div>
+  </div>
+
+  <div class="j-entry-list" id="entry-list"></div>
+
+  <div class="j-detail-overlay" id="detail-overlay">
+    <div class="j-detail-card">
+      <button class="j-detail-close" id="btn-close-detail">✕</button>
+      <div class="j-detail-date" id="detail-date"></div>
+      <div class="j-detail-title" id="detail-title"></div>
+      <div class="j-detail-body" id="detail-body"></div>
+    </div>
+  </div>
+
+  <button class="j-logout-btn" id="btn-logout">Sign Out</button>
+</div>
+
+<!-- ═══════════════════════════════════════════════════════════════ -->
+<!--  COVERT LAYER -->
+<!-- ═══════════════════════════════════════════════════════════════ -->
+<div id="covert-layer">
+  <div class="c-header">
+    <div class="c-header-left">
+      <div class="c-status-dot"></div>
+      <div class="c-channel-name" id="c-channel-display">#default_channel</div>
+    </div>
+    <div class="c-header-right">
+      <button class="c-header-btn" id="btn-channel-settings">⚙</button>
+      <button class="c-header-btn" id="btn-close-covert">✕</button>
+    </div>
+  </div>
+
+  <div class="c-channel-panel" id="channel-panel">
+    <div class="c-channel-label">Shared Channel ID</div>
+    <div class="c-channel-help">Both users must enter the exact same channel ID to see each other's messages.</div>
+    <div class="c-channel-row">
+      <input type="text" class="c-channel-input" id="channel-input" value="default_channel" />
+      <button class="c-channel-apply" id="btn-apply-channel">Apply</button>
+    </div>
+  </div>
+
+  <div class="c-messages" id="c-messages">
+    <div class="c-empty" id="c-empty">
+      <div class="c-empty-text">No messages yet.</div>
+      <div class="c-empty-hint">Messages sync in real time via Firebase.</div>
+    </div>
+  </div>
+
+  <div class="c-input-area">
+    <input type="text" class="c-input" id="c-input" placeholder="Type a message..." />
+    <button class="c-send-btn" id="btn-send">Send</button>
+  </div>
+</div>
+
+<script>
+// ═══════════════════════════════════════════════════════════════
+//  ██  CONFIGURATION  — Edit these values ██
+// ═══════════════════════════════════════════════════════════════
+
+// 1) Login credentials
+const VALID_USERS = [
+  { username: "user1", password: "pass123" },
+  { username: "user2", password: "pass456" }
+];
+
+// 2) Firebase config
+const firebaseConfig = {
+  apiKey:                "YOUR_API_KEY",
+  authDomain:            "YOUR_AUTH_DOMAIN",
+  databaseURL:           "YOUR_DATABASE_URL",
+  projectId:             "YOUR_PROJECT_ID",
+  storageBucket:         "YOUR_STORAGE_BUCKET",
+  messagingSenderId:     "YOUR_MESSAGING_SENDER_ID",
+  appId:                 "YOUR_APP_ID"
+};
+
+// 3) Secret passphrase for covert layer
+const SECRET_PASSPHRASE = "opensesame";
+
+// ═══════════════════════════════════════════════════════════════
+//  DO NOT EDIT BELOW THIS LINE
+// ═══════════════════════════════════════════════════════════════
+
+firebase.initializeApp(firebaseConfig);
+const db = firebase.database();
+
+// Generate random session ID on login (NOT stored in Firebase)
+let MY_SESSION_ID = null;
+
+const DUMMY_ENTRIES = [
+  { id:1, date:"2026-01-30", title:"A quiet Thursday",  body:"Spent the morning reading by the window. The light was perfect — golden and unhurried. Made a new recipe for dinner, a simple pasta with roasted garlic. Feeling grateful today for the small things." },
+  { id:2, date:"2026-01-28", title:"Walk in the park",  body:"Took a long walk through the park after lunch. The trees are bare but there's something beautiful about it — all those clean lines against the grey sky. Ran into an old colleague. We grabbed coffee and talked for two hours." },
+  { id:3, date:"2026-01-25", title:"Movie night",       body:"Watched that documentary about deep sea creatures. The ocean is terrifying and magnificent at the same time. Need to read more about marine biology. Maybe that could be a new hobby." },
+  { id:4, date:"2026-01-22", title:"Reflections",       body:"Had a long think today about where I want to be in five years. Not in an anxious way — more curious. I think I want to travel more. There are so many places I haven't seen yet." },
+  { id:5, date:"2026-01-19", title:"Sunday baking",     body:"Made sourdough from scratch today. It took forever but the result was worth it — crispy crust, soft inside. The kitchen smelled incredible. There's something meditative about baking." },
+  { id:6, date:"2026-01-15", title:"Rain day",          body:"It rained all day. Perfect excuse to stay in with a book and a cup of tea. Finished 'The Remains of the Day' — beautiful and quietly sad. Need to find something uplifting to read next." },
+  { id:7, date:"2026-01-10", title:"New year, same me", body:"People talk about reinventing yourself in January but I think small changes matter more. I started going to bed 30 minutes earlier. Already feels different. Baby steps." },
+];
+
+let entries = [...DUMMY_ENTRIES];
+let currentChannel = "default_channel";
+let firebaseListener = null;
+let isLoggedIn = false;
+
+const loginLayer      = document.getElementById("login-layer");
+const journalLayer    = document.getElementById("journal-layer");
+const covertLayer     = document.getElementById("covert-layer");
+const loginError      = document.getElementById("login-error");
+const searchBar       = document.getElementById("search-bar");
+const searchInput     = document.getElementById("search-input");
+const writePanel      = document.getElementById("write-panel");
+const entryList       = document.getElementById("entry-list");
+const detailOverlay   = document.getElementById("detail-overlay");
+const detailDate      = document.getElementById("detail-date");
+const detailTitle     = document.getElementById("detail-title");
+const detailBody      = document.getElementById("detail-body");
+const channelPanel    = document.getElementById("channel-panel");
+const channelInput    = document.getElementById("channel-input");
+const channelDisplay  = document.getElementById("c-channel-display");
+const messagesDiv     = document.getElementById("c-messages");
+const covertInput     = document.getElementById("c-input");
+
+function formatDate(dateStr) {
+  const d = new Date(dateStr + "T00:00:00");
+  return d.toLocaleDateString("en-US", { weekday:"long", month:"long", day:"numeric", year:"numeric" });
+}
+function formatTime(ts) {
+  return new Date(ts).toLocaleTimeString("en-US", { hour:"numeric", minute:"2-digit", hour12:true });
+}
+
+function generateSessionID() {
+  return Date.now().toString(36) + Math.random().toString(36).slice(2);
+}
+
+// ─── LOGIN ──────────────────────────────────────────────────
+document.getElementById("btn-login").addEventListener("click", handleLogin);
+document.getElementById("login-password").addEventListener("keydown", (e) => {
+  if (e.key === "Enter") handleLogin();
+});
+
+function handleLogin() {
+  const username = document.getElementById("login-username").value.trim();
+  const password = document.getElementById("login-password").value;
+  
+  const validUser = VALID_USERS.find(u => u.username === username && u.password === password);
+  
+  if (validUser) {
+    MY_SESSION_ID = generateSessionID();
+    isLoggedIn = true;
+    loginLayer.classList.add("hidden");
+    journalLayer.classList.add("visible");
+    loginError.classList.remove("visible");
+  } else {
+    loginError.classList.add("visible");
+  }
+}
+
+document.getElementById("btn-logout").addEventListener("click", () => {
+  isLoggedIn = false;
+  MY_SESSION_ID = null;
+  journalLayer.classList.remove("visible");
+  loginLayer.classList.remove("hidden");
+  document.getElementById("login-username").value = "";
+  document.getElementById("login-password").value = "";
+  closeCovert();
+});
+
+// ─── JOURNAL RENDERING ──────────────────────────────────────
+function renderEntries(filter) {
+  const list = filter
+    ? entries.filter(e => e.title.toLowerCase().includes(filter) || e.body.toLowerCase().includes(filter))
+    : entries;
+
+  if (list.length === 0) {
+    entryList.innerHTML = '<div class="j-no-results">No entries found.</div>';
+    return;
+  }
+
+  entryList.innerHTML = list.map(entry => {
+    const d = new Date(entry.date + "T00:00:00");
+    const day   = d.getDate();
+    const month = d.toLocaleString("en-US", { month:"short" });
+    return `
+      <div class="j-entry" data-id="${entry.id}">
+        <div class="j-entry-date">
+          <div class="j-entry-day">${day}</div>
+          <div class="j-entry-month">${month}</div>
+        </div>
+        <div class="j-entry-content">
+          <div class="j-entry-title">${entry.title}</div>
+          <div class="j-entry-preview">${entry.body.slice(0, 90)}…</div>
+        </div>
+      </div>`;
+  }).join("");
+}
+renderEntries();
+
+// ─── JOURNAL EVENTS ─────────────────────────────────────────
+document.getElementById("btn-open-search").addEventListener("click", () => {
+  searchBar.classList.add("visible");
+  searchInput.focus();
+});
+document.getElementById("btn-close-search").addEventListener("click", () => {
+  searchBar.classList.remove("visible");
+  searchInput.value = "";
+  renderEntries();
+});
+
+searchInput.addEventListener("input", () => {
+  const val = searchInput.value;
+  if (val.toLowerCase().trim() === SECRET_PASSPHRASE) {
+    searchBar.classList.remove("visible");
+    searchInput.value = "";
+    openCovert();
+    return;
+  }
+  renderEntries(val.toLowerCase().trim());
+});
+
+searchInput.addEventListener("blur", () => {
+  setTimeout(() => {
+    searchBar.classList.remove("visible");
+    searchInput.value = "";
+    renderEntries();
+  }, 200);
+});
+
+document.getElementById("btn-open-write").addEventListener("click", () => {
+  writePanel.classList.add("visible");
+  document.getElementById("write-title").focus();
+});
+document.getElementById("btn-cancel-write").addEventListener("click", () => {
+  writePanel.classList.remove("visible");
+  document.getElementById("write-title").value = "";
+  document.getElementById("write-body").value = "";
+});
+document.getElementById("btn-save-entry").addEventListener("click", () => {
+  const title = document.getElementById("write-title").value.trim();
+  const body  = document.getElementById("write-body").value.trim();
+  if (!title) return;
+  const today = new Date().toISOString().slice(0, 10);
+  entries.unshift({ id: Date.now(), date: today, title, body });
+  writePanel.classList.remove("visible");
+  document.getElementById("write-title").value = "";
+  document.getElementById("write-body").value = "";
+  renderEntries();
+});
+
+entryList.addEventListener("click", (e) => {
+  const card = e.target.closest(".j-entry");
+  if (!card) return;
+  const entry = entries.find(en => en.id === parseInt(card.dataset.id));
+  if (!entry) return;
+  detailDate.textContent  = formatDate(entry.date);
+  detailTitle.textContent = entry.title;
+  detailBody.textContent  = entry.body;
+  detailOverlay.classList.add("visible");
+});
+detailOverlay.addEventListener("click", (e) => {
+  if (e.target === detailOverlay) detailOverlay.classList.remove("visible");
+});
+document.getElementById("btn-close-detail").addEventListener("click", () => {
+  detailOverlay.classList.remove("visible");
+});
+
+// ─── COVERT LAYER ───────────────────────────────────────────
+function openCovert() {
+  covertLayer.classList.add("visible");
+  covertInput.focus();
+  listenToChannel();
+}
+
+function closeCovert() {
+  covertLayer.classList.remove("visible");
+  channelPanel.classList.remove("visible");
+  if (firebaseListener) {
+    db.ref("channels/" + currentChannel + "/messages").off("value", firebaseListener);
+    firebaseListener = null;
+  }
+}
+
+document.getElementById("btn-close-covert").addEventListener("click", closeCovert);
+
+document.getElementById("btn-channel-settings").addEventListener("click", () => {
+  channelPanel.classList.toggle("visible");
+  if (channelPanel.classList.contains("visible")) channelInput.focus();
+});
+
+document.getElementById("btn-apply-channel").addEventListener("click", applyChannel);
+channelInput.addEventListener("keydown", (e) => { if (e.key === "Enter") applyChannel(); });
+
+function applyChannel() {
+  const val = channelInput.value.trim();
+  if (!val) return;
+  if (firebaseListener) {
+    db.ref("channels/" + currentChannel + "/messages").off("value", firebaseListener);
+    firebaseListener = null;
+  }
+  currentChannel = val;
+  channelDisplay.textContent = "#" + currentChannel;
+  channelPanel.classList.remove("visible");
+  listenToChannel();
+}
+
+function listenToChannel() {
+  const path = "channels/" + currentChannel + "/messages";
+  firebaseListener = db.ref(path).on("value", (snapshot) => {
+    const data = snapshot.val();
+    if (!data) {
+      renderMessages([]);
+      return;
+    }
+    const msgs = Object.entries(data)
+      .map(([key, val]) => ({ ...val, key }))
+      .sort((a, b) => a.timestamp - b.timestamp);
+    renderMessages(msgs);
+  });
+}
+
+function renderMessages(msgs) {
+  if (msgs.length === 0) {
+    messagesDiv.innerHTML = `
+      <div class="c-empty">
+        <div class="c-empty-text">No messages yet.</div>
+        <div class="c-empty-hint">Messages sync in real time via Firebase.</div>
+      </div>`;
+    return;
+  }
+  messagesDiv.innerHTML = msgs.map(msg => {
+    const isMe = msg.sid === MY_SESSION_ID;
+    return `
+      <div class="c-msg-row ${isMe ? "me" : "other"}">
+        <div class="c-bubble ${isMe ? "me" : "other"}">
+          <div class="c-msg-text">${escapeHtml(msg.text)}</div>
+          <div class="c-msg-time">${formatTime(msg.timestamp)}</div>
+        </div>
+      </div>`;
+  }).join("");
+  messagesDiv.scrollTop = messagesDiv.scrollHeight;
+}
+
+function escapeHtml(str) {
+  const div = document.createElement("div");
+  div.textContent = str;
+  return div.innerHTML;
+}
+
+function sendMessage() {
+  const text = covertInput.value.trim();
+  if (!text) return;
+  const path = "channels/" + currentChannel + "/messages";
+  db.ref(path).push({
+    sid: MY_SESSION_ID,  // session ID only — no names
+    text: text,
+    timestamp: Date.now()
+  });
+  covertInput.value = "";
+  covertInput.focus();
+}
+
+document.getElementById("btn-send").addEventListener("click", sendMessage);
+covertInput.addEventListener("keydown", (e) => { if (e.key === "Enter") sendMessage(); });
+</script>
+</body>
+</html>
